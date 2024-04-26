@@ -27,6 +27,8 @@
 #define MYLOG_ERROR(logger) MYLOG(logger, sylar::LogLevel::ERROR)
 #define MYLOG_FATAL(logger) MYLOG(logger, sylar::LogLevel::FATAL)
 
+#define SYLAR_LOG_ROOT() sylar::LoggerMgr::getInstance()->getRoot()         /// 获取主日志器
+
 
 
 namespace sylar {
@@ -194,6 +196,8 @@ class LoggerManager
 public:
     LoggerManager();
     Logger::ptr getLogger(const std::string& name);
+    Logger::ptr getRoot()       { return m_root; }                                      // 返回主日志器
+    // std::string toYamlString();                                                         // 将所有的日志器配置转成YAML String
 
 private:
     std::map<std::string, Logger::ptr> m_loggers;                                       // 日志容器

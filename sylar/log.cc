@@ -433,6 +433,8 @@ LoggerManager::LoggerManager()
 {
     m_root.reset(new Logger);
     m_root->addAppender(LogAppender::ptr(new StdoutAppender));
+
+    m_loggers[m_root->getName()] = m_root;
 }
 
 Logger::ptr LoggerManager::getLogger(const std::string &name)

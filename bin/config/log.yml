@@ -1,0 +1,20 @@
+logs:
+    - name: root
+      level: info
+      formatter: '%d%T%m%n'
+      appenders:
+          - type: FileLogAppender
+            file: /home/hangzhang/projects/root.txt
+          - type: StdoutLogAppender
+    - name: system
+      level: info
+      formatter: '%d%T%m%n'
+      appenders:
+          - type: FileLogAppender
+            file: /home/hangzhang/projects/system.txt
+          - type: StdoutLogAppender
+
+system:
+    port: 9090
+    value: 15
+
