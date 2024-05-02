@@ -35,10 +35,12 @@ ConfigVarBase::ptr Config::LookupBase(const std::string &name)
     return it == s_datas.end() ? nullptr : it->second;
 }
 
-void Config::LoadFromYaml(const YAML::Node &root)
+// 整个LoadFromYaml 只处理 map 结构 内容， 即 Sequence Null 和 Scalar 统一当做 Scalar 处理 ，
+// 且 key 与 value的关系 已经确定（数据按照已经确定的关系去处理）
+void Config:: LoadFromYaml(const YAML::Node &root)                          // 该方法 将yaml中的配置覆盖到原有配置的核心方法
 {
-    std::list<std::pair<std::string, const YAML::Node> > all_nodes;
-    ListAllMember("", root, all_nodes);             // root中可以获取到日志里面配置的内容，ListAllMember则是把里面的内容分解成一个个节点
+    std::list<std::pair<std::string, const YAML::Node> > all_nodes;         // 节点类型<string,YAML::Node>
+    ListAllMember("", root, all_nodes);                                     // root中可以获取到日志里面配置的内容，ListAllMember则是把里面的内容分解成一个个节点
 
     for(auto& i : all_nodes) 
     {

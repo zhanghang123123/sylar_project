@@ -10,6 +10,7 @@
 #define __SYLAR_CONFIG_H__
 
 #include <memory>
+#include <iostream>
 #include <string>
 #include <sstream>
 #include <boost/lexical_cast.hpp>   // 系统自带的
@@ -28,7 +29,7 @@
 
 namespace sylar {
 
-/// ******************** 一条配置信息： name: value # 注释信息（description）
+/// ******************** 一条配置信息： name: value # 注释信息（description）********************
 /// ******************** 配置变量的基类 ********************
 class ConfigVarBase {
 public:
@@ -52,8 +53,64 @@ protected:
     std::string m_description;                                                  /// 配置参数的描述
 };
 
+
+template<class F, class T>                                                      // F from_type, T to_type(基础类型)
+class LexicalCast{
+public:
+    T operator()(const F& v){
+        return boost::lexical_cast<T>(v);
+    }
+};
+/// ******************** 偏特化 ********************
+template<class T>                                                               // str to vector
+class LexicalCast<std::string, std::vector<T> >{
+public:
+    std::vector<T> operator()(const std::string& v){    // v = "vector1: [11, 22, 33]\nvector2: [101, 202, 303]"
+        std::cout << " LexicalCast before YAML::Load v : "  << typeid(v).name() << "; "   << v << std::endl;
+        YAML::Node node = YAML::Load(v);                // YAML::Load(v) 将字符串转换为 YAML对应的YAMLType (vector对应的就是Sequence)
+        std::cout << " LexicalCast after YAML::Load node : "<< node.Type() << "; " << node << std::endl;  //YAML::Sequence
+        typename std::vector<T> vec;                                            // 定义的返回类，这个时候用typename
+        std::stringstream ss;
+        std::cout << " LexicalCast after YAML::Load node.size() : " << node.size() << std::endl;
+        for (size_t i = 0; i < node.size(); i++)
+        {
+            ss.str("");
+            ss << node[i];
+            std::cout << " LexicalCast after YAML::Load ss : " << ss.str() << std::endl;
+            vec.push_back(LexicalCast<std::string, T>()(ss.str()));
+        }
+        return vec;
+    }
+};
+
+template<class T>                                                               // vector to str
+class LexicalCast<std::vector<T>, std::string>{
+public:
+    std::string operator()(const std::vector<T>& v){
+//        std::cout << " LexicalCast before operator v : "  << typeid(v).name() << "; "   << v << std::endl;
+//        std::string ret = YAML::Dump(v);
+//        MYLOG_ERROR(SYLAR_LOG_ROOT()) << " LexicalCast(vector to str) : " << ret;
+
+        YAML::Node node;
+//        std::cout << " LexicalCast push back v : "  << v << std::endl;
+        for (auto& i : v)
+        {
+            node.push_back(YAML::Load(LexicalCast<T, std::string>()(i)));
+            std::cout << " LexicalCast push back node : "  << node << std::endl;
+        }
+        std::stringstream ss;
+        ss << node;
+        MYLOG_ERROR(SYLAR_LOG_ROOT()) << " LexicalCast(vector to str) : " << ss.str();
+        return ss.str();
+    }
+};
+
+
+
 /// ******************** 配置变量类(继承 配置变量的基类) ********************
-template<class T>
+// FromStr类中有方法将str转换成T类型 : T operator() (const std::string&)
+// ToStr类中有方法将T转换成str类型 : std::string operator() (const T&)
+template<class T, class FromStr = LexicalCast<std::string, T>, class ToStr = LexicalCast<T, std::string>>    // 值为默认的基础类型的转换函数
 class ConfigVar : public ConfigVarBase {
 public:
     typedef std::shared_ptr<ConfigVar> ptr;
@@ -63,13 +120,14 @@ public:
     {
     }
     // ~ConfigVar() {}                                                          /// 不用
+
     std::string toString() override                                             /// 原本想把此函数提出去放在公共函数中，但是看到 catch中的输出信息， 它是专有的
     {
         try
         {
-            return boost::lexical_cast<std::string>(m_value);
-        }
-        catch(const std::exception& e)
+            // return boost::lexical_cast<std::string>(m_value);                   // 此方法只对简单Scalar类型有用
+            return ToStr()(m_value);
+        } catch(const std::exception& e)
         {
             MYLOG_ERROR(SYLAR_LOG_ROOT()) << "ConfigVar::toString exception" << e.what() 
                                           << "convert: " << typeid(m_value).name() << " to string"; 
@@ -79,12 +137,12 @@ public:
     }
 
     bool fromString(const std::string& value) override
-    {
+    {   // "vector1: [11, 22, 33]\nvector2: [101, 202, 303]"
         try
         {
-            m_value = boost::lexical_cast<T>(value);
-        }
-        catch(const std::exception& e)
+            // m_value = boost::lexical_cast<T>(value);                             // 此方法只对简单Scalar类型有用
+            setValue(FromStr()(value));     // m_value = FromStr()(value);          // 仿函数 实现
+        } catch(const std::exception& e)
         {
             MYLOG_ERROR(SYLAR_LOG_ROOT()) << "ConfigVar::fromString exception " << e.what() 
                                           << " convert: string to " << typeid(m_value).name();
@@ -152,7 +210,7 @@ public:
 
     template<class T>
     static typename ConfigVar<T>::ptr Lookup(const std::string& name, const T& default_value, const std::string& description = "")
-    {
+    {                                                                       // 诚实的讲，我觉得这个函数叫做 register()更好。 注册默认（default）配置
         auto tmp = Lookup<T>(name);
         if(tmp)  MYLOG_INFO(SYLAR_LOG_ROOT()) << "Lookup name = " << name << " exists";
         if(name.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._012345678") != std::string::npos)

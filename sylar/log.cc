@@ -72,6 +72,14 @@ public:
     }
 };
 
+class NewLineFormatItem : public LogFormatter::FormatItem {
+public:
+    NewLineFormatItem(const std::string& str = "") {}
+    void format(std::ostream& os, Logger::ptr logger, LogLevel::Level level, LogEvent::ptr event) override {
+        os << std::endl;
+    }
+};
+
 class FilenameFormatItem : public LogFormatter::FormatItem {
 public:
     FilenameFormatItem(const std::string& str = "") {}
@@ -390,7 +398,7 @@ void LogFormatter::init()
         XX(r, EplaseFormatItem),            //r:累计毫秒数
         XX(c, LoggerNameFormatItem),        //c:日志名称
         XX(t, ThreadIdFormatItem),          //t:线程id
-        XX(n, LineFormatItem),              //n:换行
+        XX(n, NewLineFormatItem),           //n:换行
         XX(d, DateTimeFormatItem),          //d:时间
         XX(f, FilenameFormatItem),          //f:文件名
         XX(l, LineFormatItem),              //l:行号
