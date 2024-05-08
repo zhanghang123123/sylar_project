@@ -18,8 +18,10 @@ set(LIB_SRC
     sylar/util.cc
 #    sylar/singleton.h
     sylar/config.cc                                  # 因为这里写成了sylar/config.h，导致后面 所有的实现在.cc中的函数等都报error：undefined reference to
+    sylar/thread.cc
     )
 
+# 5.制作动/静态库[add_library是制作的意思, 库名称:sylar， SHARED 是库类型:动态库,还可以是 STATIC静态库, 动态库的源文件是*.cpp等]
 add_library(sylar SHARED ${LIB_SRC})
 # add_library(sylar_static STATIC ${LIB_SRC})
 # SET_TARGET_PROPERTIES(sylar_static PROPERTIES OUTPUT_NAME "sylar")
@@ -37,6 +39,13 @@ add_dependencies(test_config sylar)
 target_link_libraries(test_config sylar -L/home/hangzhang/projects/sylar_project/lib -lyaml-cpp)      
 # target_link_libraries(test_config sylar ${YAMLCPP})           
 
+# test_config
+add_executable(test_thread tests/test_thread.cc)
+add_dependencies(test_thread sylar)
+# target_link_libraries(test_config sylar)    添加yaml-cpp 之前
+target_link_libraries(test_thread sylar -L/home/hangzhang/projects/sylar_project/lib -lyaml-cpp)
+
+
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)  # 5.通过set方式指定库文件的生成路径(LIBRARY_OUTPUT_PATH这个宏就是指定库文件的生成路径)
 
