@@ -114,6 +114,7 @@ template<class T, class FromStr = LexicalCast<std::string, T>, class ToStr = Lex
 class ConfigVar : public ConfigVarBase {
 public:
     typedef std::shared_ptr<ConfigVar> ptr;
+    typedef std::function<void (const T& old_value, const T& new_value)> on_change_callback;
     ConfigVar(const std::string& name, const T& default_value, const std::string& description)
         :ConfigVarBase(name, description),
          m_value(default_value)
@@ -152,9 +153,30 @@ public:
     }
 
     const T getValue() const            { return m_value; }
-    void setValue(const T& value)       { m_value = value; }
+    void setValue(const T& value)   {
+        if(value == m_value)  return;
+        for(auto& i : m_callbacks) {
+            i.second(m_value, value);
+        }
+        m_value = value;
+    }
+    void addListener(uint64_t key, on_change_callback cb){
+        m_callbacks[key] = cb;
+    }
+    void deleteListener(uint64_t key) {
+        m_callbacks.erase(key);
+    }
+    void clearListener() {
+        m_callbacks.clear();
+    }
+    on_change_callback getListener(uint64_t key) {
+        auto it = m_callbacks.find(key);
+        return it == m_callbacks.end() ? nullptr : it->second;
+    }
+
 private:
     T m_value;
+    std::map<uint64_t, on_change_callback> m_callbacks;                             // 变更回调函数组
 };
 
 
