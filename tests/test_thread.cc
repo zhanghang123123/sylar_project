@@ -1,10 +1,21 @@
 #include "sylar/sylar.h"
 
+int count = 0;
+//sylar::RWMutex s_mutex;
+sylar::Mutex s_mutex;
+
 void func1(){
     MYLOG_INFO(SYLAR_LOG_ROOT()) << "name=" << sylar::Thread::GetName()
-                                 << "this.name=" << sylar::Thread::GetThis()->getName()
-                                 << "id=" << sylar::getThreadId()
-                                 << "this.id=" << sylar::Thread::GetThis()->getId();
+                                 << " this.name=" << sylar::Thread::GetThis()->getName()
+                                 << " id=" << sylar::getThreadId()
+                                 << " this.id=" << sylar::Thread::GetThis()->getId();
+
+    for(int i = 0; i < 100000; i++)
+    {
+//        sylar::RWMutex::WriteLock lock(s_mutex);
+        sylar::Mutex::Lock lock(s_mutex);
+        count++;
+    }
 }
 void func2(){
 
@@ -22,5 +33,6 @@ int main(int argc, char** argv){
         threads[i]->join();
     }
     MYLOG_INFO(SYLAR_LOG_ROOT()) << " test thread end--";
+    MYLOG_INFO(SYLAR_LOG_ROOT()) << " count = " << count;
     return 0;
 }

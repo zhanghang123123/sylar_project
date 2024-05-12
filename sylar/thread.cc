@@ -17,6 +17,8 @@ Thread::Thread(std::function<void ()> cb, const std::string name)
         MYLOG_ERROR(SYLAR_LOG_ROOT()) << "pthread_create thread fail, ret=" << ret << " name=" << m_name;
         throw std::logic_error("pthread_create error");
     }
+
+    m_semaphore.wait();
 }
 
 Thread::~Thread()
@@ -60,14 +62,40 @@ void *Thread::run(void *args)                           // 参数就是 pthread_
 {
     Thread* thread = (Thread*)args;
     t_thread = thread;                                  //
+    t_thread_name = thread->m_name;
     thread->m_id = sylar::getThreadId();
     pthread_setname_np(pthread_self(), thread->m_name.substr(0,15).c_str());    // 给这个线程pthread_t的线程命名，修改完了线程名以后。top命令中显示的名就变了
 
     std::function<void()> cb;
     cb.swap(thread->m_callback);
 
+    thread->m_semaphore.notify();
+
     cb();
     return 0;
+}
+
+Semaphore::Semaphore(uint32_t count)
+{
+    if(sem_init(&m_semaphore, 0, count))
+        throw std::logic_error("sem_init error");
+}
+
+Semaphore::~Semaphore()
+{
+    sem_destroy(&m_semaphore);
+}
+
+void Semaphore::wait()
+{
+    if(sem_wait(&m_semaphore))
+        throw std::logic_error("sem_wait error");
+}
+
+void Semaphore::notify()
+{
+    if(sem_post(&m_semaphore))
+        throw std::logic_error("sem_post error");
 }
 
 //#include "sylar/sylar.h"
