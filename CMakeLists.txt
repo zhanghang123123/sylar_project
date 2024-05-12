@@ -4,13 +4,15 @@ project(sylar)
 set(CMAKE_VERBOSE_MAKEFILE ON) 
 set(CMAKE_CXX_FLAGS "$ENV{CXXFLAGS} -rdynamic -O0 -g -std=c++11 -Wall -Wno-deprecated -Werror -Wno-unused-function")
 
-###### 添加yaml-cpp的库相关的 CMakeList信息
-include_directories(.)                                                  # 这个不知道什么意思
-include_directories(/home/hangzhang/projects/sylar_project/include)     # 这个路径需要按照你自己主机上include放的位置
-link_directories(/home/hangzhang/projects/sylar_project/lib)            # 同样，根据自己主机lib的位置，必须保证该lib文件夹下有你刚刚复制的3个yaml-cpp的so库
 
-find_library(YAMLCPP yaml-cpp)                                     
-# message("***", ${YAMLCPP})
+#messsage( "PROJECT_BINARY_DIR **", ${PROJECT_BINARY_DIR} )
+
+###### 添加yaml-cpp的库相关的 CMakeList信息
+include_directories(${PROJECT_SOURCE_DIR}/include)          # 使用include_directories()来指定第三方库的头文件所在的目录。这里是为了添加yaml-cpp的头文件
+link_directories(${PROJECT_SOURCE_DIR}/lib)                 # link_directories()来指定库文件的搜索路径。该lib文件夹下有你刚刚复制的3个yaml-cpp的so库
+
+#find_library(YAMLCPP NAMES yaml-cpp)   # YAMLCPP-NOTFOUND
+#message("***", ${YAMLCPP})
 ######
 
 set(LIB_SRC
@@ -27,25 +29,35 @@ add_library(sylar SHARED ${LIB_SRC})
 # SET_TARGET_PROPERTIES(sylar_static PROPERTIES OUTPUT_NAME "sylar")
 
 # test
-add_executable(test tests/test.cc)
-add_dependencies(test sylar)
-target_link_libraries(test sylar -L/home/hangzhang/projects/sylar_project/lib -lyaml-cpp)
-# target_link_libraries(test sylar ${YAMLCPP})
+set(TARGET_Test test)
+add_executable(${TARGET_Test} tests/test.cc)
+#add_dependencies(${TARGET_Test} sylar)
+target_link_libraries(${TARGET_Test} sylar yaml-cpp pthread)
 
 # test_config
 add_executable(test_config tests/test_config.cc)
-add_dependencies(test_config sylar)
-# target_link_libraries(test_config sylar)    添加yaml-cpp 之前
-target_link_libraries(test_config sylar -L/home/hangzhang/projects/sylar_project/lib -lyaml-cpp)      
-# target_link_libraries(test_config sylar ${YAMLCPP})           
+target_link_libraries(test_config sylar yaml-cpp pthread)
 
-# test_config
-add_executable(test_thread tests/test_thread.cc)
-add_dependencies(test_thread sylar)
-# target_link_libraries(test_config sylar)    添加yaml-cpp 之前
-target_link_libraries(test_thread sylar -L/home/hangzhang/projects/sylar_project/lib -lyaml-cpp)
+# test_thread
+set(TARGET_Thread test_thread)
+add_executable(${TARGET_Thread} tests/test_thread.cc)
+target_include_directories(${TARGET_Thread} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(${TARGET_Thread} sylar yaml-cpp pthread)
 
 
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)  # 5.通过set方式指定库文件的生成路径(LIBRARY_OUTPUT_PATH这个宏就是指定库文件的生成路径)
 
+
+# PROJECT_SOURCE_DIR (等价于CMakeLists.txt所在的路径)
+# PROJECT_SOURCE_DIR的默认值为项目根目录的路径（CMakeLists.txt所在的路径）。如果你使用的是子目录CMakeLists.txt，那么PROJECT_SOURCE_DIR将会是子目录的路径。
+
+# CMAKE_SOURCE_DIR指向最顶层的CMakeLists.txt文件所在的目录，即整个项目的根目录，它非常适合用于定义整个项目范围内的源代码路径
+# PROJECT_SOURCE_DIR和CMAKE_SOURCE_DIR都是指向项目源代码目录的变量，但在多项目的情况下，它们的值可能不同。
+# PROJECT_SOURCE_DIR更具体地指向当前CMakeLists.txt文件所在的目录，而CMAKE_SOURCE_DIR则指向整个项目的根目录。
+
+# target_link_libraries(my_program xxlib x1lib)
+# 用于指定一个目标（例如一个可执行文件或库）在链接时需要链接哪些库。my_program 是我们的可执行文件目标，xxlib 等(可以是多个)是我们需要链接的库。
+# 如果xxlib等中的一个是系统库，CMake 或链接器会在标准的库路径（如 /usr/lib, /usr/local/lib 等）中查找它。
+
+#
