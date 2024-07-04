@@ -44,93 +44,123 @@ class Signal;
     };
 
 */
-template<class Ret, typename ...Args>
+template<class RetType, typename ...Args>
 class SlotBase
 {
 public:
     virtual ~SlotBase() = default;
-    virtual Ret operator()(Args&&... args) = 0;
+    virtual RetType operator()(Args&&... args) = 0;
 };
 
-
-
-template<class TReciver, class TParam>
-class Slot : public SlotBase<TParam>
+template<typename RetType, typename Reciver, typename Func, typename ...Args>
+class Slot final : public SlotBase<RetType, Args...>
 {
-private:
-    TReciver* m_pReciver;   // 定义一个接收者的指针和成员函数指针
-    void (TReciver::*m_func)(TParam param); // 成员函数指针用来存放 槽函数的函数指针
-
 public:
-    Slot(TReciver* pObj, void(TReciver::*func)(TParam))
-    {
-        this->m_pReciver = pObj;
-        this->m_func = func;
+    Slot(std::shared_ptr<Reciver> receiver, Func func)
+        : m_reciver(receiver),
+          m_func(func)
+    {}
+
+    RetType operator()(Args&& ...args) override
+    {   // 这是一个重载的函数调用运算符，它接受Args...类型的参数，并返回RetType类型的值。override关键字表明这个函数覆盖了基类SlotBase中的纯虚函数。
+        auto ptr = m_reciver.lock();
+        if (ptr) { return (ptr.get()->*m_func)(std::forward<Args>(args)...); }
+        // 如果接收者存在，这里会调用接收者中的槽函数func_，并将std::forward<Args>(args)...转发给该函数。std::forward确保参数以正确的引用类型传递。
+        return RetType(); // Return default-constructed return type.
     }
+
+private:
+    std::weak_ptr<Reciver> m_reciver;  // 用于存储指向接收者的指针。std::weak_ptr与std::shared_ptr配合使用，可以避免循环引用的问题，确保当接收者不再被引用时，Slot对象可以正确清理。
+    Func m_func;                        // m_func是一个成员变量，用于存储指向接收者中槽函数的函数指针。
 };
 
-template<class TParam>
+template<typename ...Args>
 class Signal
 {
+public:
+    typedef std::shared_ptr<SlotBase<void, Args...>> SlotPtr;
+
+    template<typename Reciver, typename Func>
+    void connect(std::shared_ptr<Reciver> receiver, Func func)
+    {
+        m_slots.emplace_back(std::make_shared<Slot<void, Reciver, Func, Args...>>(receiver, func));
+    }
+//    void addSlot(Reciver* pObj, void (Reciver::*func)(TParam))
+//    {
+//        m_signal_vector.push_back(new Slot<Reciver, TParam>(pObj, func));
+//    }
+
+    template<typename ...CallArgs>
+    void operator()(CallArgs&&... call_args)
+    {
+        for(auto& slot : m_slots)
+//            (*slot)(std::forward<CallArgs>(call_args)...);
+            (*slot)(std::forward<CallArgs>(call_args)...);
+    }
+
+    template<class ...EmitArgs>
+    void emit(EmitArgs&&... emit_args)
+    {
+        for (auto& slot : m_slots)
+            (*slot)(std::forward<EmitArgs>(emit_args)...);
+    }
+
 private:
-    std::vector<SlotBase<TParam>* > m_signal_vector;
-public:
-    template<class TReciver>
-    void addSlot(TReciver* pObj, void (TReciver::*func)(TParam))
-    {
-        m_signal_vector.push_back(new Slot<TReciver, TParam>(pObj, func));
-    }
-    void operator()(TParam param)
-    {
-        for(SlotBase<TParam>* p : m_signal_vector)
-            p->slotFunction(param);
-    }
+    std::vector<SlotPtr> m_slots;
 };
 
-#define connect(sender, signal, reciver, method) (sender)->signal.addSlot(reciver, method)
+//#define connect(sender, signal, reciver, method) (sender)->signal.addSlot(reciver, method)
 
-class ReciverPosition
+class Reciver_test1
 {
 public:
-    void func(int param1)
+    void func(int param1, double param2)
     {
-        std::cout <<"recive param1=" << param1 << std::endl;
+        std::cout <<"recive param1=" << param1 <<"; param2=" << param2 << std::endl;
     }
 };
 
-class ReciverCanvas
+class Reciver_test2
 {
 public:
-    void func(int param1)
+    void func(int param1, float param2)
     {
-        std::cout <<"recive param2=" << param1 << std::endl;
+        std::cout <<"recive param1=" << param1 <<"; param2=" << param2 << std::endl;
     }
 };
 
-class SendObj
-{
-public:
-    Signal<int> valueChanged;
+//class SendObj
+//{
+//public:
+//    Signal<int> valueChanged;
 
-public:
-    void testSignal(int value)
-    {
-        valueChanged(value);
-    }
-};
+//public:
+//    void testSignal(int value)
+//    {
+//        valueChanged(value);
+//    }
+//};
 
 int main(int argc, char *argv[])
 {
 
-    ReciverPosition* p1 = new ReciverPosition;
-    ReciverCanvas* c2 = new ReciverCanvas;
+//    ReciverPosition* p1 = new ReciverPosition;
+//    ReciverCanvas* c2 = new ReciverCanvas;
 
-    SendObj* sd = new SendObj;
+//    SendObj* sd = new SendObj;
 
-    connect(sd, SendObj::valueChanged, p1, &ReciverPosition::func);
-    connect(sd, SendObj::valueChanged, c2, &ReciverCanvas::func);
+//    connect(sd, SendObj::valueChanged, p1, &ReciverPosition::func);
+//    connect(sd, SendObj::valueChanged, c2, &ReciverCanvas::func);
 
-    sd->testSignal(1000);
+//    sd->testSignal(1000);
+
+    auto receiver = std::make_shared<Reciver_test1>();
+    Signal<int, double> signal;
+    signal.connect(receiver, &Reciver_test1::func);
+
+    signal.emit(10, 3.14); // This will invoke the connected function.
+
+    signal(100,444.4);
 
     return 0;
 }
