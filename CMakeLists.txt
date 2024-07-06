@@ -41,6 +41,7 @@ set(LIB_SRC
 #    sylar/my_learn_threadpool3/threadpool.cc
 
 #    sylar/my_learn_project/qt_signal/main.cpp
+#    sylar/my_learn_project/qt_signal/signal_test.cpp
     )
 
 # 5.制作动/静态库[add_library是制作的意思, 库名称:sylar， SHARED 是库类型:动态库,还可以是 STATIC静态库, 动态库的源文件是*.cpp等]
@@ -93,6 +94,11 @@ set(TARGET_test_qtsignal test_qtsignal)
 add_executable(${TARGET_test_qtsignal} sylar/my_learn_project/qt_signal/main.cpp)
 target_include_directories(${TARGET_test_qtsignal} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(test_qtsignal sylar yaml-cpp pthread)
+# test_signal_learn
+set(TARGET_test_signal_learn test_signal_learn)
+add_executable(${TARGET_test_signal_learn} sylar/my_learn_project/qt_signal/signal_learn_v1.cpp)
+target_include_directories(${TARGET_test_signal_learn} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(test_signal_learn sylar yaml-cpp pthread)
 
 
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
