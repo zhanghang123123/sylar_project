@@ -7,22 +7,25 @@ namespace sylar {
 static thread_local Thread* t_thread = nullptr;                     // 用这个静态局部变量指向当前线程  t_thread 就是自己
 static thread_local std::string t_thread_name = "UNKNOW";           // 用这个当前线程全局变量表示当前线程name
 
-Thread::Thread(std::function<void ()> cb, const std::string name)   // 构造线程对象，传入回调函数
+Thread::Thread(std::function<void ()> cb, const std::string name)
     : m_callback(cb),
       m_name(name)
 {
-    if(name.empty()) m_name = "UNKNOW";                                 // (2).
+    if(name.empty()) m_name = "UNKNOW";
     int ret = pthread_create(&m_thread, nullptr, &Thread::run, this);
     if(ret){
         MYLOG_ERROR(SYLAR_LOG_ROOT()) << "pthread_create thread fail, ret=" << ret << " name=" << m_name;
         throw std::logic_error("pthread_create error");
     }
+
     m_semaphore.wait();
 }
 
 Thread::~Thread()
 {
-    if(m_thread) pthread_detach(m_thread);                  // 析构时线程分离，保证其自我销毁
+    if(m_thread) {
+        pthread_detach(m_thread);
+    }
 }
 
 void Thread::join()
@@ -37,12 +40,21 @@ void Thread::join()
     }
 }
 
-Thread *Thread::GetThis()               { return t_thread; }
-const std::string &Thread::GetName()    { return t_thread_name; }
-
-void Thread::SetName(const std::string &name)
+Thread *Thread::GetThis()
 {
-    if(t_thread) t_thread->m_name = name;
+    return t_thread;
+}
+
+const std::string &Thread::GetName()
+{
+    return t_thread_name;
+}
+
+void Thread::setName(const std::string &name)
+{
+    if(t_thread){
+        t_thread->m_name = name;
+    }
     t_thread_name = name;                               // 说明下，这里封装的对象Thread 是我们管理 pthread 创建的具体线程及其属性。它本身的名字 和 具体线程 是分开的，也应该是相同的。
 }
 
@@ -50,7 +62,7 @@ void *Thread::run(void *args)                           // 参数就是 pthread_
 {
     Thread* thread = (Thread*)args;
     t_thread = thread;                                  //
-    t_thread_name = thread->m_name;                     // (2). t_thread_name = thread->m_name; 不放在构造函数中，为什么？
+    t_thread_name = thread->m_name;
     thread->m_id = sylar::getThreadId();
     pthread_setname_np(pthread_self(), thread->m_name.substr(0,15).c_str());    // 给这个线程pthread_t的线程命名，修改完了线程名以后。top命令中显示的名就变了
 
@@ -60,7 +72,6 @@ void *Thread::run(void *args)                           // 参数就是 pthread_
     thread->m_semaphore.notify();
 
     cb();
-    MYLOG_INFO(SYLAR_LOG_ROOT()) << "name=" << sylar::getThreadId() << "; = " << pthread_self();
     return 0;
 }
 

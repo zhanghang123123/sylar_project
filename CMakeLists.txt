@@ -22,10 +22,10 @@ set(LIB_SRC
     sylar/util.cc
 #    sylar/singleton.h
     sylar/config.cc                                  # 因为这里写成了sylar/config.h，导致后面 所有的实现在.cc中的函数等都报error：undefined reference to
-    sylar/thread.cc
+#    sylar/thread.cc
     sylar/macro.h
 
-    sylar/fiber.cc
+#    sylar/fiber.cc
 #    sylar/scheduler.cc
 
 #    # my_learn_threadpool
@@ -59,17 +59,17 @@ target_link_libraries(${TARGET_Test} sylar yaml-cpp pthread)
 add_executable(test_config tests/test_config.cc)
 target_link_libraries(test_config sylar yaml-cpp pthread)
 
-# test_thread
-set(TARGET_Thread test_thread)
-add_executable(${TARGET_Thread} tests/test_thread.cc)
-target_include_directories(${TARGET_Thread} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(${TARGET_Thread} sylar yaml-cpp pthread)
+## test_thread
+#set(TARGET_Thread test_thread)
+#add_executable(${TARGET_Thread} tests/test_thread.cc)
+#target_include_directories(${TARGET_Thread} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+#target_link_libraries(${TARGET_Thread} sylar yaml-cpp pthread)
 
-# test_util
-set(TARGET_Util test_util)
-add_executable(${TARGET_Util} tests/test_util.cc)
-target_include_directories(${TARGET_Util} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(test_util sylar yaml-cpp pthread)
+## test_util
+#set(TARGET_Util test_util)
+#add_executable(${TARGET_Util} tests/test_util.cc)
+#target_include_directories(${TARGET_Util} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+#target_link_libraries(test_util sylar yaml-cpp pthread)
 
 ## test_fiber
 #set(TARGET_Fiber test_fiber)
@@ -77,11 +77,11 @@ target_link_libraries(test_util sylar yaml-cpp pthread)
 #target_include_directories(${TARGET_Fiber} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 #target_link_libraries(test_fiber sylar yaml-cpp pthread)
 
-# test_util
-set(TARGET_learn_threads_scheduler learntest_threadsscheduler)
-add_executable(${TARGET_learn_threads_scheduler} tests/learntest_thread_scheduler.cc)
-target_include_directories(${TARGET_learn_threads_scheduler} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(learntest_threadsscheduler sylar yaml-cpp pthread)
+## test_util
+#set(TARGET_learn_threads_scheduler learntest_threadsscheduler)
+#add_executable(${TARGET_learn_threads_scheduler} tests/learntest_thread_scheduler.cc)
+#target_include_directories(${TARGET_learn_threads_scheduler} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+#target_link_libraries(learntest_threadsscheduler sylar yaml-cpp pthread)
 
 ## test_threadpool
 #set(TARGET_learn_threadpool learntest_threadpool)
