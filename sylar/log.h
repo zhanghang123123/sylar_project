@@ -12,6 +12,7 @@
 
 #include "util.h"
 #include "singleton.h"
+#include "thread.h"
 
 
 /// ******************** 使用流式方式将日志级别level的日志写入到logger ********************
@@ -19,7 +20,7 @@
     if(logger->getLevel() <= level) \
         sylar::LogEventWrap(sylar::LogEvent::ptr(new sylar::LogEvent( \
             logger, level, __FILE__, __LINE__, 0, sylar::getThreadId(), \
-            sylar::getFiberId(), time(0), "MainThread"))).getSS()
+            sylar::getFiberId(), time(0), sylar::Thread::GetName()))).getSS()
 
 #define MYLOG_DEBUG(logger) MYLOG(logger, sylar::LogLevel::DEBUG)
 #define MYLOG_INFO(logger) MYLOG(logger, sylar::LogLevel::INFO)
