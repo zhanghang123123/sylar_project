@@ -25,6 +25,27 @@ struct Bar
     int age = 100;
 };
 
+
+// 致敬QT ，用Signal 记录、管理 监听函数集合(qt 用信号在多个对象之间传递消息，)
+struct Signal
+{
+    // 将监听的函数 的保存和访问放在vector 中, 就目前而言，要求所有的 参数都是一致的（参数类型和参数个数），后面会改为支持不同参数；暂时只能支持相同变量
+    std::vector<std::function<void(int)> > callbacks;
+
+    void connect(std::function<void(int)> callback)     //  致敬QT, add_callback() 就是往vector中添加 要监听的 callback函数 
+    {
+        callbacks.push_back(callback);                  // 更高效的添加可以用  callbacks.push_back(std::move(callback));
+    }
+
+    void emit(int i)                        //  致敬QT, emit 发出信号，实际上就是将执行emit 函数的对象的function函数 （全部）执行一次 
+    {
+        for(auto&& callback : callbacks)    // for循环 函数容器， 可以用万能引用
+        {
+            callback(i);
+        }
+    }
+};
+
 struct Input
 {
     void main_loop()
@@ -32,15 +53,18 @@ struct Input
         int i;
         while(std::cin >> i)
         {
-            for(auto&& callback : callbacks)    // for循环 函数容器， 可以用万能引用
-            {
-                callback(i);
-            }
+            signal_input.emit(i);
+            // for(auto&& callback : callbacks)    // for循环 函数容器， 可以用万能引用
+            // {
+            //     callback(i);
+            // }
         }
     }
 
-    // 将监听的函数 的保存和访问放在vector 中, 就目前而言，要求所有的 参数都是一致的（参数类型和参数个数），后面会改为支持不同参数；暂时只能支持相同变量
-    std::vector<std::function<void(int)> > callbacks;
+    Signal signal_input;
+    // // 将监听的函数 的保存和访问放在vector 中, 就目前而言，要求所有的 参数都是一致的（参数类型和参数个数），后面会改为支持不同参数；暂时只能支持相同变量
+    // std::vector<std::function<void(int)> > callbacks;
+
 };
 
 
@@ -64,9 +88,14 @@ int main()
     input.no_name_callback =    [](int i)             { std::cout << "no_name callback i=" << i << std::endl; };   // lamada 表达式的 {} 结束要加 ';'
     */
 
+    /*
     input.callbacks.push_back([&foo](int x)  { foo.on_input(x, 5); });          // 参数只能有一个和 std::vector<std::function<void(int)> > callbacks; 匹配的参数了
     input.callbacks.push_back([&bar](int x)  { bar.on_input(x); });
     input.callbacks.push_back([](int i)  { std::cout << "no_name callback i=" << i << std::endl; });
+    */
+    input.signal_input.connect([&foo](int x)  { foo.on_input(x, 5); });
+    input.signal_input.connect([&bar](int x)  { bar.on_input(x); });
+    input.signal_input.connect([](int i)  { std::cout << "no_name callback i=" << i << std::endl; });
 
 
     input.main_loop();
@@ -78,6 +107,12 @@ int main()
  * 输入器类 Input；另外两个类 Foo，Bar想监听Input产生的事件 (比如 Input类中的键盘输入事件，然后这两个类负责接收并处理)
     2. 用现代c++ 函数容器来处理函数指针
     3. 学学lamada 表达式，及各种捕获...
+
+      |
+      v
+  version 4 升级:
+    1. 将 监听函数集合单独封装
+    2. 解决参数只能固定的缺点。引入模版
 
     terminal output:
         1
