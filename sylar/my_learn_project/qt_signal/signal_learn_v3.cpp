@@ -7,41 +7,43 @@
 #include <functional>
 #include <vector>
 
-// 形参包语法: ...T 省略号在左边表示 define，定义一个形参包(打包); T... 省略号在右边表示 use，使用一个形参包(拆包)
+/// 形参包语法: ...T 省略号在左边表示 define，定义一个形参包(打包); T... 省略号在右边表示 use，使用一个形参包(拆包)
 
 struct Foo
 {
-    void on_input(int i, int j) const { std::cout << "Foo age=" << age << "; i=" << i << "; j=" << j << std::endl; }
-    ~Foo()  { std::cout << "~Foo" << std::endl; }
+    void on_input(int i, int j) const   { std::cout << "Foo age=" << age << "; i=" << i << "; j=" << j << std::endl; }
+    ~Foo()                              { std::cout << "~Foo" << std::endl; }
 
     int age = 15;
 };
 
 struct Bar
 {
-    void on_input(int i) const { std::cout << "Bar age=" << age << " i=" << i << '\n'; }
-    ~Bar()  { std::cout << "~Bar" << std::endl; }
+    void on_input(int i) const  { std::cout << "Bar age=" << age << " i=" << i << '\n'; }
+    void on_exit() const        { std::cout << "Bar on exit>>>" << '\n'; }
+    ~Bar()                      { std::cout << "~Bar" << std::endl; }
 
     int age = 100;
 };
 
 
 // 致敬QT ，用Signal 记录、管理 监听函数集合(qt 用信号在多个对象之间传递消息，)
+template<typename ...T>
 struct Signal
 {
     // 将监听的函数 的保存和访问放在vector 中, 就目前而言，要求所有的 参数都是一致的（参数类型和参数个数），后面会改为支持不同参数；暂时只能支持相同变量
-    std::vector<std::function<void(int)> > callbacks;
+    std::vector<std::function<void(T...)> > callbacks;
 
-    void connect(std::function<void(int)> callback)     //  致敬QT, add_callback() 就是往vector中添加 要监听的 callback函数 
+    void connect(std::function<void(T...)> callback)     //  致敬QT, add_callback() 就是往vector中添加 要监听的 callback函数 
     {
         callbacks.push_back(callback);                  // 更高效的添加可以用  callbacks.push_back(std::move(callback));
     }
 
-    void emit(int i)                        //  致敬QT, emit 发出信号，实际上就是将执行emit 函数的对象的function函数 （全部）执行一次 
+    void emit(T... t)                        //  致敬QT, emit 发出信号，实际上就是将执行emit 函数的对象的function函数 （全部）执行一次  t 是一个 具有形参包（T...）的变量
     {
         for(auto&& callback : callbacks)    // for循环 函数容器， 可以用万能引用
         {
-            callback(i);
+            callback(t...);
         }
     }
 };
@@ -53,17 +55,19 @@ struct Input
         int i;
         while(std::cin >> i)
         {
-            signal_input.emit(i);
+            signal_input.emit(i, i+1);
             // for(auto&& callback : callbacks)    // for循环 函数容器， 可以用万能引用
             // {
             //     callback(i);
             // }
         }
+        signal_exit.emit();
     }
 
-    Signal signal_input;
+    Signal<int, int> signal_input;
     // // 将监听的函数 的保存和访问放在vector 中, 就目前而言，要求所有的 参数都是一致的（参数类型和参数个数），后面会改为支持不同参数；暂时只能支持相同变量
     // std::vector<std::function<void(int)> > callbacks;
+    Signal<> signal_exit;   // 支持空的参数
 
 };
 
@@ -93,9 +97,10 @@ int main()
     input.callbacks.push_back([&bar](int x)  { bar.on_input(x); });
     input.callbacks.push_back([](int i)  { std::cout << "no_name callback i=" << i << std::endl; });
     */
-    input.signal_input.connect([&foo](int x)  { foo.on_input(x, 5); });
-    input.signal_input.connect([&bar](int x)  { bar.on_input(x); });
-    input.signal_input.connect([](int i)  { std::cout << "no_name callback i=" << i << std::endl; });
+    input.signal_input.connect([&foo](int x, int y)  { foo.on_input(x, y); });
+    input.signal_input.connect([&bar](int x, int y)  { bar.on_input(x); });
+    input.signal_input.connect([](int i, int j)  { std::cout << "no_name callback i=" << i << std::endl; });
+    input.signal_exit.connect([&bar]()  { bar.on_exit(); });
 
 
     input.main_loop();
@@ -114,32 +119,13 @@ int main()
     1. 将 监听函数集合单独封装
     2. 解决参数只能固定的缺点。引入模版
 
-    terminal output:
-        1
-        Foo age=15; i=1; j=1
-        Bar age=100 i=1
-        no_name callback i=2
-        2
-        Foo age=15; i=2; j=1
-        Bar age=100 i=2
-        no_name callback i=3
-        4
-        Foo age=15; i=4; j=1
-        Bar age=100 i=1
-        no_name callback i=5
-        
-        6
-        Foo age=15; i=6; j=1
-        Bar age=100 i=0
-        no_name callback i=7
-        7
-        Foo age=15; i=7; j=1
-        Bar age=100 i=1
-        no_name callback i=8
-        
-        q
-        ~Bar
-        ~Foo
+      |
+      v
+  version 5 升级:
+    1. 将 支持的变量 多样化 模版实现变参
+        假设 Bar 函数中要有一个函数 void on_exit(); 事件，需要监听 main_loop() 中 输入结束事件。这时候变量为空。 这时候支持变参就很重要了(不然 你还要指定一些垃圾类型来占位，不然编译不过)
+    2. 解决参数只能固定的缺点。引入模版
+
 
 */
 
