@@ -1,0 +1,22 @@
+# 构建产物
+build/
+bin/
+lib/
+*.o/
+*.a/
+*.so/
+*.ext
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE配置
+.vscode/
+.idea/
+
+# CMake生成文件
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
