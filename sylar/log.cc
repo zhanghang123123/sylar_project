@@ -52,7 +52,7 @@ class MessageFormatItem : public LogFormatter::FormatItem { // [继承类中类]
 public:
     MessageFormatItem(const std::string& fmt = "") {}
     void format(std::ostream& os, std::shared_ptr<Logger> logger,LogLevel::Level level,LogEvent::ptr event) override {
-        os << event->getContent();
+        os << event->getContent();  // 直接返回event中的 信息对应的字符串 到 os 中: std::ostream& os; os << "Hello, ";  os << "World!"; 最终 os 中的内容是 "Hello, World!"。
     }
 };
 
@@ -76,7 +76,7 @@ class NewLineFormatItem : public LogFormatter::FormatItem {
 public:
     NewLineFormatItem(const std::string& str = "") {}
     void format(std::ostream& os, Logger::ptr logger, LogLevel::Level level, LogEvent::ptr event) override {
-        os << std::endl;
+        os << std::endl;    // 换行
     }
 };
 
@@ -111,7 +111,7 @@ class LoggerNameFormatItem : public LogFormatter::FormatItem {
 public:
     LoggerNameFormatItem(const std::string& fmt = "") {}
     void format(std::ostream& os, std::shared_ptr<Logger> logger,LogLevel::Level level,LogEvent::ptr event) override {
-        os << logger->getName();
+        os << logger->getName();    // logger 参数就是为了获取 logger日志起名称
     }
 };
 
@@ -200,7 +200,27 @@ Logger::Logger(const std::string& name)
 {
     // const char[] formatter = "%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n";  false
     // const char formatter[] = "%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n"; 
-    m_formatter.reset(new LogFormatter("%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n"));
+//    m_formatter.reset(new LogFormatter("%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n"));
+
+    // mode1 ^-------v mode2
+
+    // 定义日志格式
+    std::vector<std::pair<LogFormatter::LogPattern, std::string>> patterns = {
+//        {static_cast<LogFormatter::LogPattern>(100), "MyCustomFormat"}, // 使用动态注册的格式
+        {LogFormatter::LogPattern::DateTimeFormat, ""},
+        {LogFormatter::LogPattern::TabFormat, ""},
+        {LogFormatter::LogPattern::LevelFormat, ""},                   // 使用默认格式
+        {LogFormatter::LogPattern::TabFormat, ""},
+        {LogFormatter::LogPattern::ThreadIdFormat, ""},
+        {LogFormatter::LogPattern::TabFormat, ""},
+        {LogFormatter::LogPattern::ThreadNameFormat, ""},
+        {LogFormatter::LogPattern::TabFormat, ""},
+        {LogFormatter::LogPattern::MessageFormat, ""},
+        {LogFormatter::LogPattern::NewLineFormat, ""}
+    };
+
+    // 初始化日志格式
+    m_formatter.reset(new LogFormatter(patterns));
 }
 
 void Logger::addAppender(LogAppender::ptr appender) {
@@ -220,28 +240,18 @@ void Logger::delAppender(LogAppender::ptr appender) {
 
 void Logger::log(LogLevel::Level level, LogEvent::ptr event)  {
     if(level >= m_level) {
-        auto self = shared_from_this(); // [?] 
+        auto self = shared_from_this(); // [?] 只有继承std::enable_shared_from_this<Logger>，才能在自己的成员函数中获得自己的智能指针，这样以后才能把它的智能指针传出去(智能指针哦)
         for(auto &i : m_appender) {
             i->log(self,level, event);
         } 
     }
 }
 
-void Logger::debug(LogEvent::ptr event) {
-    log(LogLevel::DEBUG, event); 
-}
-void Logger::info(LogEvent::ptr event) {
-    log(LogLevel::INFO, event); 
-}
-void Logger::warn(LogEvent::ptr event) {
-    log(LogLevel::WARN, event); 
-}
-void Logger::fatal(LogEvent::ptr event) {
-    log(LogLevel::ERROR, event); 
-}
-void Logger::error(LogEvent::ptr event) {
-    log(LogLevel::FATAL, event); 
-}
+void Logger::debug(LogEvent::ptr event) { log(LogLevel::DEBUG, event); }
+void Logger::info(LogEvent::ptr event)  { log(LogLevel::INFO, event); }
+void Logger::warn(LogEvent::ptr event)  { log(LogLevel::WARN, event); }
+void Logger::fatal(LogEvent::ptr event) { log(LogLevel::ERROR, event); }
+void Logger::error(LogEvent::ptr event) { log(LogLevel::FATAL, event); }
 
 
 FileLogAppender::FileLogAppender(const std::string& filename) 
@@ -262,7 +272,7 @@ bool FileLogAppender::reopen() {
     }
 
     m_filestream.open(m_filename);
-    return !!m_filestream; // [?]
+    return !!m_filestream; // [?]   双感叹号!!作用就是非0值转成1，而0值还是0. example: 非0值是true,-400就是true, !(-400)=false, !!(-400) = true
 }
 
 void StdoutAppender::log(std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::ptr event)
@@ -272,9 +282,32 @@ void StdoutAppender::log(std::shared_ptr<Logger> logger, LogLevel::Level level, 
     }
 }
 
+// 枚举值到格式化项的映射
+std::map<LogFormatter::LogPattern, std::function<LogFormatter::FormatItem::ptr(const std::string&)> > LogFormatter::s_c_format_items = {
+    {LogPattern::MessageFormat,    [](const std::string& fmt) { return std::make_shared<MessageFormatItem>(fmt); }},
+    {LogPattern::LevelFormat,      [](const std::string& fmt) { return std::make_shared<LevelFormatItem>(fmt); }},
+    {LogPattern::EplaseFormat,     [](const std::string& fmt) { return std::make_shared<EplaseFormatItem>(fmt); }},
+    {LogPattern::LoggerNameFormat, [](const std::string& fmt) { return std::make_shared<LoggerNameFormatItem>(fmt); }},
+    {LogPattern::ThreadIdFormat,   [](const std::string& fmt) { return std::make_shared<ThreadIdFormatItem>(fmt); }},
+    {LogPattern::NewLineFormat,    [](const std::string& fmt) { return std::make_shared<NewLineFormatItem>(fmt); }},
+    {LogPattern::DateTimeFormat,   [](const std::string& fmt) { return std::make_shared<DateTimeFormatItem>(fmt); }},
+    {LogPattern::FilenameFormat,   [](const std::string& fmt) { return std::make_shared<FilenameFormatItem>(fmt); }},
+    {LogPattern::LineNumFormat,    [](const std::string& fmt) { return std::make_shared<LineFormatItem>(fmt); }},
+    {LogPattern::FiberIdFormat,    [](const std::string& fmt) { return std::make_shared<FiberIdFormatItem>(fmt); }},
+    {LogPattern::TabFormat,        [](const std::string& fmt) { return std::make_shared<TabFormatItem>(fmt); }},
+    {LogPattern::ThreadNameFormat, [](const std::string& fmt) { return std::make_shared<ThreadNameFormatItem>(fmt); }},
+};
+
 LogFormatter::LogFormatter(const std::string& pattern) 
-    : m_pattern(pattern) {
-        init();
+    : m_pattern(pattern)
+{
+    init();
+}
+
+LogFormatter::LogFormatter(const std::vector<std::pair<LogFormatter::LogPattern, std::string>>& patterns)
+    : m_logpatterns(patterns)
+{
+    init2();
 }
 
 std::string LogFormatter::format(std::shared_ptr<Logger> logger,LogLevel::Level level,LogEvent::ptr event) {
@@ -289,10 +322,10 @@ std::string LogFormatter::format(std::shared_ptr<Logger> logger,LogLevel::Level 
 // 日志格式定义
 void LogFormatter::init() 
 {
-    // "%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n"  解析该字符串
+    // "%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n"  解析该字符串 (这里实现初始化日志格式，可由用户指定字符串 lai 指定日志格式)
     std::vector<std::tuple<std::string, std::string, int> > vec;  // [tuple]  str, format, type
     std::string nstr; //当前str
-    for(size_t i = 0; i < m_pattern.size(); ++i)
+    for(size_t i = 0; i < m_pattern.size(); ++i)    // size_t(无符号) 适配不同的机器的一种类型，常在STL标准库中使用，无符号整型，可以任意表示string和数组的大小
     {
         /// 状态机的三种状态（以%来进行状态转换）： 1  != '%'
         if(m_pattern[i] != '%') 
@@ -407,20 +440,154 @@ void LogFormatter::init()
         XX(N, ThreadNameFormatItem),        //N:线程名称
 #undef XX
     };
+    /* 直接把所有的类型都实例化到静态map里(知识点18: static静局部态变量初始化与函数执行关系 https://chat.deepseek.com/a/chat/s/457fb921-90f9-4a27-8b39-2636ce2e2315)
+        在C++中，static局部变量的初始化只会在函数第一次被调用时执行一次。之后的每次函数调用都会跳过这个初始化过程，直接使用已经初始化好的静态变量。
+        具体到你的代码：
+            int A() {
+                xxx;
+                static std::map<...> s = {...};
+                yyy;
+            }
+        第一次调用函数 A 时：
+            1. 执行 xxx;
+            2. 初始化静态变量 s，即 static std::map<...> s = {...}; 会被执行。
+            3. 执行 yyy;。
+        后续调用函数 A 时：
+            1. 执行 xxx;。
+            2. 跳过 static std::map<...> s = {...}; 的初始化，直接使用已经初始化好的 s。
+            3. 执行 yyy;。
+        因此，静态变量 s 的初始化只会在第一次调用函数 A 时发生，后续调用时不会再重新初始化，而是直接使用已经存在的 s。
+        这样可以避免重复初始化，提高效率。
+        需要注意的是，静态变量的生命周期是整个程序运行期间，所以它的值会在多次函数调用之间保持持久性。
+     */
 
-    for(auto& i : vec) {
-        if(std::get<2>(i) == 0) {
+    for(auto& i : vec)
+    {
+        if(std::get<2>(i) == 0)
+        {
             m_items.push_back(FormatItem::ptr(new StringFormatItem(std::get<0>(i))));
-        } else {
+        }
+        else
+        {
             auto it = s_format_items.find(std::get<0>(i));
-            if(it == s_format_items.end()) {
+            if(it == s_format_items.end())
+            {
                 m_items.push_back(FormatItem::ptr(new StringFormatItem("<<error_format %" + std::get<0>(i) + ">>")));
-            } else {
+            } else
+            {
                 m_items.push_back(it->second(std::get<1>(i)));
             }
         }
         std::cout << '(' << std::get<0>(i) << ") - (" << std::get<1>(i) << ") - (" << std::get<2>(i) << ')' << std::endl;
     }
+}
+
+void LogFormatter::init2()
+{
+    m_items.clear();
+//(放到外面)    // 枚举值到格式化项的映射
+//    static const std::map<LogPattern, std::function<FormatItem::ptr(const std::string&)> > s_c_format_items = {
+//        {LogPattern::MessageFormat,    [](const std::string& fmt) { return std::make_shared<MessageFormatItem>(fmt); }},
+//        {LogPattern::LevelFormat,      [](const std::string& fmt) { return std::make_shared<LevelFormatItem>(fmt); }},
+//        {LogPattern::EplaseFormat,     [](const std::string& fmt) { return std::make_shared<EplaseFormatItem>(fmt); }},
+//        {LogPattern::LoggerNameFormat, [](const std::string& fmt) { return std::make_shared<LoggerNameFormatItem>(fmt); }},
+//        {LogPattern::ThreadIdFormat,   [](const std::string& fmt) { return std::make_shared<ThreadIdFormatItem>(fmt); }},
+//        {LogPattern::NewLineFormat,    [](const std::string& fmt) { return std::make_shared<NewLineFormatItem>(fmt); }},
+//        {LogPattern::DateTimeFormat,   [](const std::string& fmt) { return std::make_shared<DateTimeFormatItem>(fmt); }},
+//        {LogPattern::FilenameFormat,   [](const std::string& fmt) { return std::make_shared<FilenameFormatItem>(fmt); }},
+//        {LogPattern::LineNumFormat,    [](const std::string& fmt) { return std::make_shared<LineFormatItem>(fmt); }},
+//        {LogPattern::FiberIdFormat,    [](const std::string& fmt) { return std::make_shared<FiberIdFormatItem>(fmt); }},
+//        {LogPattern::TabFormat,        [](const std::string& fmt) { return std::make_shared<TabFormatItem>(fmt); }},
+//        {LogPattern::ThreadNameFormat, [](const std::string& fmt) { return std::make_shared<ThreadNameFormatItem>(fmt); }},
+//    };
+
+    // 遍历枚举值，生成格式化项
+    for (const auto& pattern_pair : m_logpatterns)
+    {
+        LogPattern pattern = pattern_pair.first;       // 获取枚举值
+        const std::string& fmt = pattern_pair.second;  // 获取格式字符串
+
+        auto it = s_c_format_items.find(pattern);
+        if (it != s_c_format_items.end())
+            m_items.push_back(it->second(fmt)); // 使用用户指定的格式
+        else
+            m_items.push_back(std::make_shared<StringFormatItem>("<error_format>"));    // 处理未知枚举值
+    }
+
+//        // 遍历枚举值，生成格式化项
+//        for (const auto& [pattern, fmt] : patterns)
+//        {
+//            auto it = s_c_format_items.find(pattern);
+//            if (it != s_c_format_items.end()) {
+//                m_items.push_back(it->second(fmt)); // 使用用户指定的格式
+//            } else {
+//                // 处理未知枚举值
+//                m_items.push_back(std::make_shared<StringFormatItem>("<error_format>"));
+//            }
+//        }
+
+//        // 遍历枚举值，生成格式化项
+//        for (const auto& pattern : m_logpatterns)
+//        {
+//            auto it = s_c_format_items.find(pattern);
+//            if (it != s_c_format_items.end())
+//                m_items.push_back(it->second("")); // 使用默认格式
+//            else
+//                // 未知枚举值，生成错误提示
+//                m_items.push_back(std::make_shared<StringFormatItem>("<error_format>"));
+//        }
+
+        /* bad design
+        for(int i = 0; i < m_logpatterns.cout(); ++i)
+        {
+            LogPattern pattern = m_logpatterns.at(i);
+            switch (pattern) {
+            case MessageFormat:
+                m_items.push_back(new MessageFormatItem(""));
+                break;
+            case LevelFormat:
+                m_items.push_back(new LevelFormatItem(""));
+                break;
+            case EplaseFormat:
+                m_items.push_back(new EplaseFormatItem(""));
+                break;
+            case LoggerNameFormat:
+                m_items.push_back(new LoggerNameFormatItem(""));
+                break;
+            case ThreadIdFormat:
+                m_items.push_back(new ThreadIdFormatItem(""));
+                break;
+            case NewLineFormat:
+                m_items.push_back(new NewLineFormatItem(""));
+                break;
+            case DateTimeFormat:
+                m_items.push_back(new DateTimeFormatItem(""));
+                break;
+            case FilenameFormat:
+                m_items.push_back(new FilenameFormatItem(""));
+                break;
+            case LineNumFormat:
+                m_items.push_back(new LineFormatItem(""));
+                break;
+            case FiberIdFormat:
+                m_items.push_back(new FiberIdFormatItem(""));
+                break;
+            case TabFormat:
+                m_items.push_back(new TabFormatItem(""));
+                break;
+            case ThreadNameFormat:
+                m_items.push_back(new ThreadNameFormatItem(""));
+                break;
+            default:
+                break;
+            }
+        }
+        */
+}
+
+void LogFormatter::registerFormat(LogFormatter::LogPattern pattern, std::function<LogFormatter::FormatItem::ptr (const std::string &)> creator)
+{
+    s_c_format_items[pattern] = creator;
 }
 
 LogEventWrap::LogEventWrap(LogEvent::ptr event)
@@ -430,7 +597,7 @@ LogEventWrap::LogEventWrap(LogEvent::ptr event)
 
 LogEventWrap::~LogEventWrap()
 {
-    m_event->getLogger()->log(m_event->getLevel(), m_event);    // 把自己写入日志
+    m_event->getLogger()->log(m_event->getLevel(), m_event);    // 把自己写入日志 ?  深入分析一下，怎么输出到控制台
 }
 std::stringstream &LogEventWrap::getSS()
 {

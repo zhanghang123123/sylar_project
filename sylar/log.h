@@ -12,28 +12,32 @@
 
 #include "util.h"
 #include "singleton.h"
+#include "thread.h"
 
 
-/// ******************** 使用流式方式将日志级别level的日志写入到logger ********************
+/// ******************** 使用流式方式将日志级别level的日志写入到logger ********************  (分析下这里写的好处，用宏)
 #define MYLOG(logger, level) \
     if(logger->getLevel() <= level) \
         sylar::LogEventWrap(sylar::LogEvent::ptr(new sylar::LogEvent( \
             logger, level, __FILE__, __LINE__, 0, sylar::getThreadId(), \
-            sylar::getFiberId(), time(0), "MainThread"))).getSS()
+            sylar::getFiberId(), time(0), sylar::Thread::GetName()))).getSS()
 
-#define MYLOG_DEBUG(logger) MYLOG(logger, sylar::LogLevel::DEBUG)
-#define MYLOG_INFO(logger) MYLOG(logger, sylar::LogLevel::INFO)
-#define MYLOG_WARN(logger) MYLOG(logger, sylar::LogLevel::WARN)
-#define MYLOG_ERROR(logger) MYLOG(logger, sylar::LogLevel::ERROR)
-#define MYLOG_FATAL(logger) MYLOG(logger, sylar::LogLevel::FATAL)
+#define MYLOG_DEBUG(logger) MYLOG(logger, sylar::LogLevel::DEBUG)           // 使用流式方式将日志级别debug的日志写入到logger
+#define MYLOG_INFO(logger) MYLOG(logger, sylar::LogLevel::INFO)             // 使用流式方式将日志级别info的日志写入到logger
+#define MYLOG_WARN(logger) MYLOG(logger, sylar::LogLevel::WARN)             // 使用流式方式将日志级别warn的日志写入到logger
+#define MYLOG_ERROR(logger) MYLOG(logger, sylar::LogLevel::ERROR)           // 使用流式方式将日志级别error的日志写入到logger
+#define MYLOG_FATAL(logger) MYLOG(logger, sylar::LogLevel::FATAL)           // 使用流式方式将日志级别fatal的日志写入到logger
 
-#define SYLAR_LOG_ROOT() sylar::LoggerMgr::getInstance()->getRoot()         /// 获取主日志器
+#define SYLAR_LOG_ROOT() sylar::LoggerMgr::getInstance()->getRoot()             // 获取主日志器
+#define SYLAR_LOG_NAME(name) sylar::LoggerMgr::GetInstance()->getLogger(name)   // 获取name的日志器
 
 
 
 namespace sylar {
 
-/// ******************** 自定义日志级别 ********************
+/*  ******************** 自定义日志级别 ********************
+ *
+ */
 class LogLevel {
 public:
     enum Level{
@@ -52,8 +56,9 @@ public:
 
 class Logger;               // <把Logger放到这里的目的?> 在定义Logger之前的一些类会用到Logger，不加会报未定义错误
 
-
-/// ******************** 日志的一些配置 ********************
+/* ******************** 日志事件(日志的一些配置) ********************
+ * 可以理解为产生的一条日志就是一个日志事件，实际产生一条日志，就是一个日志输出。所以要详细包含输出日志的详细信息
+ */
 class LogEvent {
 public:
     typedef std::shared_ptr<LogEvent> ptr;      // [智能指针]
@@ -62,7 +67,7 @@ public:
             LogLevel::Level level,              // 日志级别
             const char* file,                   // 文件名
             int32_t line,                       // 文件行号
-            uint32_t elapse,                    // 程序启动依赖的耗时(毫秒)
+            uint32_t elapse,                    // 程序启动依赖的耗时(毫秒) 程序启动到现在的毫秒数
             uint32_t thread_id,                 // 线程id
             uint32_t fiber_id,                  // 协程id
             uint64_t time,                      // 日志事件(秒)
@@ -77,7 +82,7 @@ public:
     const std::string& getThreadName() const    { return m_threadName; }
     const std::string getContent() const        { return m_ss.str(); }
     std::stringstream& getSS()                  { return m_ss; }        // getStringStream();
-    std::shared_ptr<Logger> getLogger() const   { return m_logger; }
+    std::shared_ptr<Logger> getLogger() const   { return m_logger; }    // 查一下这个的目的和 logeventWrap 的用法目的。
     LogLevel::Level getLevel() const            { return m_level; }
 
 private:
@@ -93,7 +98,13 @@ private:
     LogLevel::Level m_level;                    // 日志等级
 };
 
-class LogEventWrap
+/*
+ * 这里用wrap的原因是，wrap作为临时对象，在使用完后直接析构，触发日志写入，然而日志本身的智能指针，如果声明在主函数里面，程序不结束就永远无法释放
+ * 这里是实现 LogEvent 可以将自己写进logger吧，所以抽象了一个 Wrap，析构时自动写入
+ * 所以这意思是logger是一个缓冲？然后wrap析构后一次性输出？
+ * 这里解释一下为什么要用LogWarp 因为单纯的LogEvent无法使用流式调用了，所以用析构的方式将缓存的字符串输出
+ */
+class LogEventWrap          //  logeventWrap 的用法目的: RAii
 {
 public:
     LogEventWrap(LogEvent::ptr event);
@@ -105,15 +116,36 @@ private:
 };
 
 
-/// ******************** 日志格式化（日志定向输出器）********************
+/* ******************** 日志格式化（器）********************
+ * 这个类功能可以这样理解: 我现在一个日志logevent要输出了, 再交给appender之前，先用formatter进行格式化处理.
+ * 处理完了的结果（string）,直接交给appender 直接输出
+ * LogFormatter中一个format() 方法，传入一个event, 返回一个string
+ *      format():
+ *          return      : 返回格式化日志文本
+ *          param[in]   : ogger 日志器, level 日志级别, event 日志事件
+ */
 class LogFormatter {
 public:
+    enum LogPattern
+    {   // for init2() mode
+        MessageFormat,
+        LevelFormat,
+        EplaseFormat,
+        LoggerNameFormat,
+        ThreadIdFormat,
+        NewLineFormat,
+        DateTimeFormat,
+        FilenameFormat,
+        LineNumFormat,
+        FiberIdFormat,
+        TabFormat,
+        ThreadNameFormat
+    };
+
     typedef std::shared_ptr<LogFormatter> ptr;
     LogFormatter(const std::string& pattern);
-    /** @brief 返回格式化日志文本
-     * @param[in] logger 日志器, @param[in] level 日志级别, @param[in] event 日志事件
-     */
-    std::string format(std::shared_ptr<Logger> logger,LogLevel::Level level,LogEvent::ptr event);
+    LogFormatter(const std::vector<std::pair<LogPattern, std::string>>& patterns);
+    std::string format(std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::ptr event);
 public:
     class FormatItem {   // [类中类]
     public:
@@ -121,29 +153,50 @@ public:
         virtual ~FormatItem() {}
         virtual void format(std::ostream& os, std::shared_ptr<Logger> logger,LogLevel::Level level,LogEvent::ptr event) = 0;
     };
-    void init(); 
+    void init();
+    void init2();
+    static std::map<LogPattern, std::function<FormatItem::ptr(const std::string&)>> s_c_format_items;
+    void registerFormat(LogPattern pattern, std::function<FormatItem::ptr(const std::string&)> creator);
 private:
     std::string m_pattern;                                                              // 解析格式
+//    std::vector<LogPattern> m_logpatterns;
+    std::vector<std::pair<LogPattern, std::string>> m_logpatterns;
     std::vector<FormatItem::ptr> m_items;                                               // 解析内容
 };
 
-/// ******************** 日志输出地 ********************
+/* ******************** 日志输出地 ********************
+ * LogAppender 作为日志输出地类，因为日志输出地可能有很多吗，所以把它作为基类，具体的输出地类FileLogAppender，StdoutAppender都继承于它，重写。
+ * (1)所以必须定义成虚的析构函数，否则子类析构的时候，会产生内存释放问题。
+ *
+ * (2)当要输出的 日志信息(logevent)交给 appender以后，（这个时候它还是不能直接输出的），appender调用 formatter 将 logevent格式化出来
+ */
 class LogAppender {
 public:
     typedef std::shared_ptr<LogAppender> ptr;
-virtual ~LogAppender() {}                                                               // 为了便于该类的派生类调用，定义为[虚类]，
+virtual ~LogAppender() {}                                                               // (1)为了便于该类的派生类调用，定义为[虚类]，
     virtual void log(std::shared_ptr<Logger> logger,LogLevel::Level level, LogEvent::ptr event) = 0;// [纯虚函数]，子类必须重写； 写入日志; 参数： 日志器，日志级别， 日志时间
 
     void setLevel(LogLevel::Level level)            { m_level = level; } 
     LogLevel::Level getLevel()                      { return m_level; }
     void setFormatter(LogFormatter::ptr val)        { m_formatter = val; }              // 更改日志格式器
     LogFormatter::ptr getFormatter() const          { return m_formatter; }             // 获取日志格式器
+
 protected:
-    LogLevel::Level m_level = LogLevel::DEBUG;                                          // 级别,为了便于子类访问该变量，设置在保护视图下
-    LogFormatter::ptr m_formatter;                                                      // 定义输出格式
+    LogLevel::Level m_level = LogLevel::DEBUG;                                          // 日志级别,为了便于子类访问该变量，设置在protected下(该日志级别必须初始化。犯过错误)
+    LogFormatter::ptr m_formatter;                                                      // (2)定义输出格式
 };
 
-/// ******************** 日志器 ********************
+/* ******************** 日志器 ********************
+ *
+ * logger 就是输出日志的类， 调用它的函数log()就是一条log输出。
+ *      具体输出的信息就是传入的参数 logevent,
+ *      输出地方就是 LogAppender,
+ * 具体上就是：log()中 将logevent（包含很多信息）传入 LogAppender: 将 logevent 输出到 LogAppender 中去
+ *           logappender进一步调用 formatter 格式化 logevent成字符串,
+ *           formatter中具体这个过程就是调用每个formatteritem去格式化每一小段
+ *
+ * log(level) 就是执行这个输出流程的。 考虑到不想每个输出都指定level, 可以特化出debug(), ... error()
+ */
 class Logger : public std::enable_shared_from_this<Logger>{ // [?]
 public:
     typedef std::shared_ptr<Logger> ptr;
@@ -160,9 +213,9 @@ public:
 
     void addAppender(LogAppender::ptr appender);                                        // 添加一个appender
     void delAppender(LogAppender::ptr appender);                                        // 删除一个appender
-    LogLevel::Level getLevel() const { return m_level; }                                // [const放在函数后]
-    void setLevel(LogLevel::Level val) { m_level = val; }                               // 设置级别
-    const std::string& getName() const { return m_name; }
+    LogLevel::Level getLevel() const    { return m_level; }                             // [const放在函数后]
+    void setLevel(LogLevel::Level val)  { m_level = val; }                              // 设置级别
+    const std::string& getName() const  { return m_name; }
 private:
     std::string m_name;                                                                 // 日志名称
     LogLevel::Level m_level;                                                            // 级别
@@ -170,7 +223,7 @@ private:
     LogFormatter::ptr m_formatter;
 };
 
-/// ******************** 日志输出地（输出方法分类：输出到控制台） ********************
+/// ******************** 日志输出地（输出方法分类：输出到控制台的LogAppender） ********************
 class StdoutAppender : public LogAppender {
 public:
     typedef std::shared_ptr<StdoutAppender> ptr; 
@@ -178,7 +231,7 @@ public:
 private:
 };
 
-/// ******************** 日志输出地（输出方法分类：输出到文件） ********************
+/// ******************** 日志输出地（输出方法分类：输出到文件的LogAppender） ********************
 class FileLogAppender : public LogAppender {
 public:
     typedef std::shared_ptr<FileLogAppender> ptr;
@@ -194,17 +247,17 @@ private:
 class LoggerManager 
 {
 public:
-    LoggerManager();
-    Logger::ptr getLogger(const std::string& name);
-    Logger::ptr getRoot()       { return m_root; }                                      // 返回主日志器
-    // std::string toYamlString();                                                         // 将所有的日志器配置转成YAML String
+    LoggerManager();                                // 构造函数
+    Logger::ptr getLogger(const std::string& name); // 获取日志器(日志器名称)
+    Logger::ptr getRoot()       { return m_root; }  // 返回主日志器
+    // std::string toYamlString();                  // 将所有的日志器配置转成YAML String
 
 private:
-    std::map<std::string, Logger::ptr> m_loggers;                                       // 日志容器
-    Logger::ptr m_root;                                                                 // 主日志器
+    std::map<std::string, Logger::ptr> m_loggers;   // 日志容器
+    Logger::ptr m_root;                             // 主日志器
 };
 
-typedef sylar::Singleton<LoggerManager> LoggerMgr;                                      /// 日志器管理类单例模式
+typedef sylar::Singleton<LoggerManager> LoggerMgr;  /// 日志器管理类单例模式
 
 }
 
