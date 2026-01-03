@@ -13,9 +13,11 @@ void func1(){
     for(int i = 0; i < 100000; i++)
     {
 //        sylar::RWMutex::WriteLock lock(s_mutex);
-        sylar::Mutex::Lock lock(s_mutex);
+        sylar::Mutex::Lock lock(s_mutex);   // 进入下一次循环之后自动析构函数，触发RAII机制，所以会自动解锁 (如果你要中途释放锁,就用{}括起来)
         count++;
     }
+
+    sleep(10);
 }
 void func2(){
 
