@@ -215,6 +215,8 @@ Logger::Logger(const std::string& name)
         {LogFormatter::LogPattern::TabFormat, ""},
         {LogFormatter::LogPattern::ThreadNameFormat, ""},
         {LogFormatter::LogPattern::TabFormat, ""},
+        {LogFormatter::LogPattern::FiberIdFormat, ""},
+        {LogFormatter::LogPattern::TabFormat, ""},
         {LogFormatter::LogPattern::MessageFormat, ""},
         {LogFormatter::LogPattern::NewLineFormat, ""}
     };
