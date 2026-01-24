@@ -6,12 +6,12 @@
 
 namespace sylar {
 
-pid_t getThreadId()
+pid_t GetThreadId()
 {
     return syscall(SYS_gettid); // linux 获取thread id的方式，收集下. 搞懂了pthread_self和syscall是不一样的 syscall返回的是linux下的线程ID  pthread_self获取的是pthread库的线程id 不同进程间这个线程id可能会相同?
 }
 
-uint32_t getFiberId()
+uint32_t GetFiberId()
 {
 //    return 0; // TODO
 //    return sylar::getFiberId();

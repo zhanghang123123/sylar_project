@@ -12,7 +12,7 @@ template<class T, class X = void, int N = 0>  // T 类型 X 为了创造多个�
 class Singleton
 {
 public:
-    static T* getInstance()
+    static T* GetInstance()
     {
         static T v;
         return &v;
@@ -23,7 +23,7 @@ template<class T, class X = void, int N = 0>
 class SingletonPtr
 {
 public:
-    static std::shared_ptr<T> getInstance()
+    static std::shared_ptr<T> GetInstance()
     {
         static std::shared_ptr<T> v(new T);
         return v; 

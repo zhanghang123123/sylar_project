@@ -51,7 +51,7 @@ void* Thread::run(void *args)                           // 参数就是 pthread_
     Thread* thread = (Thread*)args;                     // https://yb.tencent.com/s/17jGNcYMfxGt
     t_thread = thread;                                  // 将 Thread对象的指针存入线程局部变量​ t_thread。
     t_thread_name = thread->m_name;                     // (2). t_thread_name = thread->m_name; 不放在构造函数中，为什么？
-    thread->m_id = sylar::getThreadId();
+    thread->m_id = sylar::GetThreadId();
     pthread_setname_np(pthread_self(), thread->m_name.substr(0,15).c_str());    // 给这个线程pthread_t的线程命名，修改完了线程名以后。top命令中显示的名就变了
 
     std::function<void()> cb;
@@ -60,7 +60,7 @@ void* Thread::run(void *args)                           // 参数就是 pthread_
     thread->m_semaphore.notify();
 
     cb();
-    MYLOG_INFO(SYLAR_LOG_ROOT()) << "name=" << sylar::getThreadId() << "; = " << pthread_self();
+    MYLOG_INFO(SYLAR_LOG_ROOT()) << "name=" << sylar::GetThreadId() << "; = " << pthread_self();
     return 0;
 }
 
@@ -92,7 +92,7 @@ void Semaphore::notify()
 //void func1(){
 //    MYLOG_INFO(SYLAR_LOG_ROOT()) << "name=" << sylar::Thread::GetName()
 //                                 << "this.name=" << sylar::Thread::GetThis()->getName()
-//                                 << "id=" << sylar::getThreadId()
+//                                 << "id=" << sylar::GetThreadId()
 //                                 << "this.id=" << sylar::Thread::GetThis()->getId();
 //}
 //void func2(){

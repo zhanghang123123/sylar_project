@@ -4,7 +4,7 @@ project(sylar)                                      # 项目名称
 set(CMAKE_VERBOSE_MAKEFILE ON) 
 set(CMAKE_CXX_FLAGS "$ENV{CXXFLAGS} -rdynamic -O0 -g -std=c++11 -Wall -Wno-deprecated -Werror -Wno-unused-function")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-#set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 #messsage( "PROJECT_BINARY_DIR **", ${PROJECT_BINARY_DIR} )
@@ -26,13 +26,13 @@ set(LIB_SRC
     sylar/macro.h
 
     sylar/fiber.cc
-#    sylar/scheduler.cc
+    sylar/scheduler.cc
 
 #    # my_learn_threadpool
 #   sylar/my_learn_threadpool/workerThread.cc
 #    sylar/my_learn_threadpool/threadUtils.cc
     sylar/my_learn_threadpool/taskQuene.h
-    sylar/my_learn_threadpool/threadpool.h
+    sylar/my_learn_threadpool/threadPool.h
 #    sylar/my_learn_threadpool/threadPool.cc
 
     # my_learn_threadpool2
@@ -71,11 +71,17 @@ add_executable(${TARGET_Util} tests/test_util.cc)
 target_include_directories(${TARGET_Util} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(test_util sylar yaml-cpp pthread)
 
-## test_fiber
-#set(TARGET_Fiber test_fiber)
-#add_executable(${TARGET_Fiber} tests/test_fiber.cc)
-#target_include_directories(${TARGET_Fiber} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-#target_link_libraries(test_fiber sylar yaml-cpp pthread)
+# test_fiber
+set(TARGET_Fiber test_fiber)
+add_executable(${TARGET_Fiber} tests/test_fiber.cc)
+target_include_directories(${TARGET_Fiber} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(test_fiber sylar yaml-cpp pthread)
+
+# test_scheduler
+set(TARGET_Scheduler test_scheduler)
+add_executable(${TARGET_Scheduler} tests/test_scheduler.cc)
+target_include_directories(${TARGET_Scheduler} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(test_scheduler sylar yaml-cpp pthread)
 
 # test_util
 set(TARGET_learn_threads_scheduler learntest_threadsscheduler)
@@ -96,9 +102,16 @@ target_include_directories(${TARGET_test_qtsignal} PUBLIC "${CMAKE_CURRENT_SOURC
 target_link_libraries(test_qtsignal sylar yaml-cpp pthread)
 # test_signal_learn
 set(TARGET_test_signal_learn test_signal_learn)
-add_executable(${TARGET_test_signal_learn} sylar/my_learn_project/qt_signal/signal_learn_v3.cpp)
+add_executable(${TARGET_test_signal_learn} sylar/my_learn_project/qt_signal/signal_learn_v4.cpp)
 target_include_directories(${TARGET_test_signal_learn} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(test_signal_learn sylar yaml-cpp pthread)
+
+
+# test_asio_network
+set(TARGET_asio_network test_asio_network)
+add_executable(${TARGET_asio_network} sylar/my_learn_project/asio_network/main.cpp)
+target_include_directories(${TARGET_asio_network} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(test_asio_network sylar yaml-cpp pthread)
 
 
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)

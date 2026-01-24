@@ -7,7 +7,7 @@ sylar::Mutex s_mutex;
 void func1(){
     MYLOG_INFO(SYLAR_LOG_ROOT()) << "name=" << sylar::Thread::GetName()
                                  << " this.name=" << sylar::Thread::GetThis()->getName()
-                                 << " id=" << sylar::getThreadId()
+                                 << " id=" << sylar::GetThreadId()
                                  << " this.id=" << sylar::Thread::GetThis()->getId();
 
     for(int i = 0; i < 100000; i++)

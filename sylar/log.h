@@ -19,8 +19,8 @@
 #define MYLOG(logger, level) \
     if(logger->getLevel() <= level) \
         sylar::LogEventWrap(sylar::LogEvent::ptr(new sylar::LogEvent( \
-            logger, level, __FILE__, __LINE__, 0, sylar::getThreadId(), \
-            sylar::getFiberId(), time(0), sylar::Thread::GetName()))).getSS()
+            logger, level, __FILE__, __LINE__, 0, sylar::GetThreadId(), \
+            sylar::GetFiberId(), time(0), sylar::Thread::GetName()))).getSS()
 
 #define MYLOG_DEBUG(logger) MYLOG(logger, sylar::LogLevel::DEBUG)           // 使用流式方式将日志级别debug的日志写入到logger
 #define MYLOG_INFO(logger) MYLOG(logger, sylar::LogLevel::INFO)             // 使用流式方式将日志级别info的日志写入到logger
@@ -28,7 +28,7 @@
 #define MYLOG_ERROR(logger) MYLOG(logger, sylar::LogLevel::ERROR)           // 使用流式方式将日志级别error的日志写入到logger
 #define MYLOG_FATAL(logger) MYLOG(logger, sylar::LogLevel::FATAL)           // 使用流式方式将日志级别fatal的日志写入到logger
 
-#define SYLAR_LOG_ROOT() sylar::LoggerMgr::getInstance()->getRoot()             // 获取主日志器
+#define SYLAR_LOG_ROOT() sylar::LoggerMgr::GetInstance()->getRoot()             // 获取主日志器
 #define SYLAR_LOG_NAME(name) sylar::LoggerMgr::GetInstance()->getLogger(name)   // 获取name的日志器
 
 

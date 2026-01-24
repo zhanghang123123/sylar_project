@@ -52,6 +52,7 @@ public:
 
     uint64_t getId() const      { return m_id; }        /// @brief 返回协程id
     State getState() const      { return m_state; }     /// @brief 返回协程状态
+    void setstate(State state)  { m_state = state; }
 
 public:
     static void SetThis(Fiber* f);                      /// 设置当前线程的运行协程  @param[in] f 运行协程

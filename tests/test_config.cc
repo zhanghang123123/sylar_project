@@ -8,9 +8,7 @@
 
 
 sylar::ConfigVar<int>::ptr g_int_value_config = sylar::Config::Lookup("system.port", (int)8080, "system port");
-
 // sylar::ConfigVar<int>::ptr g_float_value_config = sylar::Config::Lookup("system.value", (float)10.2f, "system value");
-
 sylar::ConfigVar<std::vector<int> >::ptr g_vector_int_value_config = sylar::Config::Lookup("system.int_vector", std::vector<int>{1,2}, "system int vector");  //ListAllMember() 解析完以后就是 system.port 这种key
 
 
@@ -64,7 +62,7 @@ static void ListAllMember(const std::string& prefix,
 
 void test_yaml() 
 {
-    YAML::Node root = YAML::LoadFile("/home/hangzhang/projects/sylar_project/bin/config/log.yml");
+    YAML::Node root = YAML::LoadFile("/home/hangzhang/projects/sylar_project/config/log.yml");
 
     MYLOG_INFO(SYLAR_LOG_ROOT()) << root;
     print_yaml(root, 0);
@@ -72,7 +70,7 @@ void test_yaml()
 
 void test_listAllMember()
 {
-    YAML::Node root = YAML::LoadFile("/home/hangzhang/projects/sylar_project/bin/config/log.yml");
+    YAML::Node root = YAML::LoadFile("/home/hangzhang/projects/sylar_project/config/log.yml");
     std::list<std::pair<std::string, const YAML::Node> > all_nodes;             // 将root中的结点进行解析，存放到all_nodes中
     ListAllMember("", root, all_nodes);
     for (auto it = all_nodes.begin(); it != all_nodes.end(); it++){             // 遍历输出all_nodes
@@ -90,7 +88,7 @@ void test_config()
     }
 //    MYLOG_INFO(SYLAR_LOG_ROOT()) << "before int_vector to str: " << g_vector_int_value_config->toString();
 
-    YAML::Node root = YAML::LoadFile("/home/hangzhang/projects/sylar_project/bin/config/log.yml");
+    YAML::Node root = YAML::LoadFile("/home/hangzhang/projects/sylar_project/config/log.yml");
     sylar::Config::LoadFromYaml(root);
     MYLOG_INFO(SYLAR_LOG_ROOT()) << "after:" << g_int_value_config->getValue(); 
     // MYLOG_INFO(SYLAR_LOG_ROOT()) << "after:" << g_float_value_config->toString();
@@ -111,6 +109,9 @@ int main(int argc, char* argv[])
 
     test_config();
     // test_listAllMember();
+    MYLOG_INFO(SYLAR_LOG_ROOT()) << "----";
+    MYLOG_INFO(SYLAR_LOG_ROOT()) << g_int_value_config->getValue();
+    MYLOG_INFO(SYLAR_LOG_ROOT()) << g_int_value_config->toString();
 
     return 0;   // 高标准代码 所有非空函数必须有稳定的返回值（if else容易 遗漏）
 }

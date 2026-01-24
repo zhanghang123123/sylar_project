@@ -148,8 +148,8 @@ Fiber::ptr Fiber::GetThis()
 void Fiber::YieldToReady()
 {                                                           // 主协程没必要切到主协程，应该要作判断 assert(GetThis() != t_threadFiber)
     Fiber::ptr cur = GetThis();                             // 拿到当前（正在执行的）协程
-    SYLAR_ASSERT(cur->m_state == EXEC);
-    cur->m_state = READY;                                   // 1. 把当前协程的状态设置为READY,
+    SYLAR_ASSERT(cur->getState() == EXEC);
+    cur->setstate(READY);                                   // 1. 把当前协程的状态设置为READY,
     cur->swapOut();                                         // 2. 把当前协程切出去（到后台）
 }
 
@@ -157,8 +157,8 @@ void Fiber::YieldToReady()
 void Fiber::YieldToHold()
 {                                                           // 主协程没必要切到主协程，应该要作判断 assert(GetThis() != t_threadFiber)
     Fiber::ptr cur = GetThis();
-    SYLAR_ASSERT(cur->m_state == EXEC);
-    //cur->m_state = HOLD;
+    SYLAR_ASSERT(cur->getState() == EXEC);
+    //cur->setstate(HOLD);
     cur->swapOut();
 }
 
@@ -172,15 +172,15 @@ void Fiber::MainFunc()
     try {
         cur->m_cb();                                                        // 执行当前协程的函数
         cur->m_cb = nullptr;                                                // 当前协程的函数执行完毕后，执行的回调函数置为nullptr, 因为用的是智能指针，不用的东西置为nullptr，使得引用计数减1，能及时释放
-        cur->m_state = TERM;                                                // 当前协程的函数执行完毕后, 修改当前协程状态为TERM (DONE)
+        cur->setstate(TERM);                                                // 当前协程的函数执行完毕后, 修改当前协程状态为TERM (DONE)
     } catch (std::exception& ex) {
-        cur->m_state = EXCEPT;                                              // 非正常结束时）当出了问题时的异常结束，则 当前协程的状态为异常（表示结束，但是不正常的状态）
+        cur->setstate(EXCEPT);                                              // 非正常结束时）当出了问题时的异常结束，则 当前协程的状态为异常（表示结束，但是不正常的状态）
         MYLOG_DEBUG(SYLAR_LOG_ROOT()) << "Fiber Except: " << ex.what()      // 如果捕捉到异常的话，就打印出日志  (getthis是默认构造  创建的是主协程，主协程没有回调函数，就会产生异常)
                                       << " fiber_id=" << cur->getId()
                                       << std::endl
                                       << sylar::BacktraceToString(0, 0, "    ");
     } catch (...) {                                                         // 如果没有捕捉到异常的话，就打印出日志
-        cur->m_state = EXCEPT;
+        cur->setstate(EXCEPT);
         MYLOG_DEBUG(SYLAR_LOG_ROOT()) << "Fiber Except"
                                       << " fiber_id=" << cur->getId()
                                       << std::endl
@@ -204,15 +204,15 @@ void Fiber::CallerMainFunc()
     try {
         cur->m_cb();
         cur->m_cb = nullptr;
-        cur->m_state = TERM;
+        cur->setstate(TERM);
     } catch (std::exception& ex) {
-        cur->m_state = EXCEPT;
+        cur->setstate(EXCEPT);
         MYLOG_DEBUG(SYLAR_LOG_ROOT()) << "Fiber Except: " << ex.what()
                                       << " fiber_id=" << cur->getId()
                                       << std::endl
                                       << sylar::BacktraceToString(0, 0, "    ");
     } catch (...) {
-        cur->m_state = EXCEPT;
+        cur->setstate(EXCEPT);
         MYLOG_DEBUG(SYLAR_LOG_ROOT()) << "Fiber Except"
                                       << " fiber_id=" << cur->getId()
                                       << std::endl

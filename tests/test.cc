@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
 
     MYLOG_DEBUG(logger) << "my log";
 
-    auto l = sylar::LoggerMgr::getInstance()->getLogger("xx");
+    auto l = sylar::LoggerMgr::GetInstance()->getLogger("xx");
     MYLOG_INFO(l) << "XX";
 
 
